@@ -61,9 +61,9 @@ class SteamAuthService {
       );
 
       // Parse callback URL
-      final uri = Uri.parse(result);
-      final token = uri.queryParameters['token'];
-      final steamId = uri.queryParameters['steamId'];
+      final callbackUri = Uri.parse(result);
+      final token = callbackUri.queryParameters['token'];
+      final steamId = callbackUri.queryParameters['steamId'];
 
       if (token == null || steamId == null) {
         throw Exception('Invalid callback: missing token or steamId');
