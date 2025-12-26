@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             <p>Could not verify your Steam identity. Please try again.</p>
             <script>
               setTimeout(() => {
-                window.location.href = 'wntp://auth/error?message=verification_failed';
+                window.location.href = 'com.wntp://auth/error?message=verification_failed';
               }, 2000);
             </script>
           </body>
@@ -47,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = createSessionToken(steamId);
 
     // Redirect to app with token
-    const redirectUrl = `wntp://auth/success?token=${encodeURIComponent(token)}&steamId=${steamId}`;
+    const redirectUrl = `com.wntp://auth/success?token=${encodeURIComponent(token)}&steamId=${steamId}`;
 
     return res.status(200).send(`
       <html>
@@ -62,7 +62,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           <script>
             // Try immediate redirect
             window.location.href = '${redirectUrl}';
-
             // Fallback: Show manual link if redirect doesn't work
             setTimeout(() => {
               document.body.innerHTML += '<p><a href="${redirectUrl}">Click here if you are not redirected automatically</a></p>';
@@ -80,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           <p>An error occurred during authentication. Please try again.</p>
           <script>
             setTimeout(() => {
-              window.location.href = 'wntp://auth/error?message=server_error';
+              window.location.href = 'com.wntp://auth/error?message=server_error';
             }, 2000);
           </script>
         </body>

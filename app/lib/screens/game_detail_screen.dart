@@ -536,15 +536,19 @@ class GameDetailScreen extends StatelessWidget {
 
   Future<void> _openSteamStore(String appId) async {
     final url = Uri.parse('https://store.steampowered.com/app/$appId');
-    if (await canLaunchUrl(url)) {
+    try {
       await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      // Silently fail - browser should always be available
     }
   }
 
   Future<void> _launchGame(String appId) async {
     final url = Uri.parse('steam://run/$appId');
-    if (await canLaunchUrl(url)) {
+    try {
       await launchUrl(url);
+    } catch (e) {
+      // Steam app not installed - silently fail
     }
   }
 }
