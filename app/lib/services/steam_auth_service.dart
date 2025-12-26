@@ -48,11 +48,7 @@ class SteamAuthService {
       // Open browser for Steam authentication
       // The actual callback comes through MethodChannel
       final uri = Uri.parse(authUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw Exception('Could not launch Steam login URL');
-      }
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
 
       // Wait for MethodChannel callback with timeout
       final result = await _authCompleter!.future.timeout(
