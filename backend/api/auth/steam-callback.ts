@@ -61,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           <p>Steam ID: ${steamId}</p>
           <script>
             // Try immediate redirect
-            window.location.assign('${redirectUrl}');
+            window.location.href = '${redirectUrl}';
             // Fallback: Show manual link if redirect doesn't work
             setTimeout(() => {
               document.body.innerHTML += '<p><a href="${redirectUrl}">Click here if you are not redirected automatically</a></p>';
