@@ -75,11 +75,11 @@ class BackendApiService {
     }
   }
 
-  /// Fetch game details from Steam Store
+  /// Fetch game details from Steam Store (direct API call)
   Future<Map<String, dynamic>> fetchGameDetails(String appId) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/games/details?appId=$appId'),
+        Uri.parse('https://store.steampowered.com/api/appdetails?appids=$appId'),
       );
 
       if (response.statusCode == 200) {
@@ -92,11 +92,11 @@ class BackendApiService {
     }
   }
 
-  /// Fetch game reviews from Steam Store
+  /// Fetch game reviews from Steam Store (direct API call)
   Future<Map<String, dynamic>> fetchGameReviews(String appId) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/games/reviews?appId=$appId'),
+        Uri.parse('https://store.steampowered.com/appreviews/$appId?json=1&num_per_page=0'),
       );
 
       if (response.statusCode == 200) {
