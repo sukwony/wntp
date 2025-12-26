@@ -70,8 +70,6 @@ class SteamAuthService {
 
       return steamId;
     } catch (e) {
-      _authCompleter = null;
-
       // Timeout = user cancelled
       if (e.toString().contains('timeout') || e.toString().contains('Authentication timeout')) {
         return null;
