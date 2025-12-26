@@ -7,7 +7,7 @@
  * Extract Steam ID from OpenID claimed_id
  * Format: https://steamcommunity.com/openid/id/<steam64_id>
  */
-export function extractSteamId(claimedId: string): string | null {
+function extractSteamId(claimedId: string): string | null {
   const match = claimedId.match(/^https?:\/\/steamcommunity\.com\/openid\/id\/(\d+)$/);
   return match ? match[1] : null;
 }
