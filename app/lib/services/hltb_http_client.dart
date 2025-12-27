@@ -18,15 +18,12 @@ class HltbHttpClient {
   Future<String?> _getAuthToken() async {
     // Return cached token if still valid (estimate 5 minutes lifetime)
     if (_authToken != null && _tokenExpiry != null && DateTime.now().isBefore(_tokenExpiry!)) {
-      debugPrint('[HltbHttp] 🔑 Using cached auth token');
       return _authToken;
     }
 
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final url = 'https://howlongtobeat.com/api/search/init?t=$timestamp';
-
-      debugPrint('[HltbHttp] 🔑 Fetching auth token...');
 
       final response = await _client.get(
         Uri.parse(url),
@@ -44,7 +41,6 @@ class HltbHttpClient {
         if (token != null && token.isNotEmpty) {
           _authToken = token;
           _tokenExpiry = DateTime.now().add(const Duration(minutes: 5));
-          debugPrint('[HltbHttp] ✅ Got auth token');
           return token;
         }
       }
@@ -60,10 +56,7 @@ class HltbHttpClient {
   /// Search for games using HLTB API
   /// Returns list of matching games (usually first result is most relevant)
   Future<List<HltbGameData>> searchGames(String gameName) async {
-    if (gameName.isEmpty) {
-      debugPrint('[HltbHttp] ❌ Empty game name');
-      return [];
-    }
+    if (gameName.isEmpty) return [];
 
     try {
       // Get auth token first
@@ -111,8 +104,6 @@ class HltbHttpClient {
         'useCache': true
       };
 
-      debugPrint('[HltbHttp] 🔍 Searching for "$gameName" (normalized: "$normalizedName")...');
-
       final response = await _client.post(
         Uri.parse('https://howlongtobeat.com/api/search'),
         headers: {
@@ -130,11 +121,8 @@ class HltbHttpClient {
         final dataList = jsonData['data'] as List<dynamic>?;
 
         if (dataList == null || dataList.isEmpty) {
-          debugPrint('[HltbHttp] ⚠️ No results for "$gameName"');
           return [];
         }
-
-        debugPrint('[HltbHttp] ✅ Found ${dataList.length} results for "$gameName"');
 
         // Parse all results
         final results = <HltbGameData>[];
@@ -148,16 +136,15 @@ class HltbHttpClient {
         return results;
       } else if (response.statusCode == 401) {
         // Unauthorized - clear token and retry once
-        debugPrint('[HltbHttp] ⚠️ Unauthorized (401) - clearing token');
         _authToken = null;
         _tokenExpiry = null;
         return [];
       } else {
-        debugPrint('[HltbHttp] ❌ Search failed: ${response.statusCode} - ${response.body}');
+        debugPrint('[HltbHttp] ❌ Search failed: ${response.statusCode}');
         return [];
       }
     } on TimeoutException {
-      debugPrint('[HltbHttp] ⏱️ Search timeout');
+      debugPrint('[HltbHttp] ❌ Search timeout');
       return [];
     } catch (e) {
       debugPrint('[HltbHttp] ❌ Search error: $e');
@@ -171,30 +158,13 @@ class HltbHttpClient {
   /// Returns HltbGameData if successful, null if fetch/parse fails
   Future<HltbGameData?> fetchByGameId(String hltbId) async {
     try {
-      debugPrint('[HltbHttp] 🎯 Fetching game data by ID: $hltbId');
-
-      // Step 1: Fetch game page HTML
       final html = await fetchGamePage(hltbId);
-      if (html == null) {
-        debugPrint('[HltbHttp] ❌ Failed to fetch page for ID: $hltbId');
-        return null;
-      }
+      if (html == null) return null;
 
-      // Step 2: Extract JSON from __NEXT_DATA__ script tag
       final jsonData = extractJsonFromHtml(html);
-      if (jsonData == null) {
-        debugPrint('[HltbHttp] ❌ Failed to extract JSON for ID: $hltbId');
-        return null;
-      }
+      if (jsonData == null) return null;
 
-      // Step 3: Parse game data from JSON
       final gameData = parseGameData(jsonData);
-      if (gameData == null) {
-        debugPrint('[HltbHttp] ❌ Failed to parse game data for ID: $hltbId');
-        return null;
-      }
-
-      debugPrint('[HltbHttp] ✅ Fetched by ID: ${gameData.name}');
       return gameData;
     } catch (e) {
       debugPrint('[HltbHttp] ❌ Error fetching by ID $hltbId: $e');
@@ -236,16 +206,11 @@ class HltbHttpClient {
 
   /// Fetch game page HTML from https://howlongtobeat.com/game/{gameId}
   Future<String?> fetchGamePage(String gameId) async {
-    if (gameId.isEmpty) {
-      debugPrint('[HltbHttp] ❌ Empty game ID');
-      return null;
-    }
+    if (gameId.isEmpty) return null;
 
     final url = 'https://howlongtobeat.com/game/$gameId';
 
     try {
-      debugPrint('[HltbHttp] 🌐 Fetching: $url');
-
       final response = await _client
           .get(
             Uri.parse(url),
@@ -266,18 +231,16 @@ class HltbHttpClient {
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        debugPrint('[HltbHttp] ✅ Fetched ${response.body.length} bytes');
         return response.body;
       } else {
-        debugPrint(
-            '[HltbHttp] ❌ HTTP ${response.statusCode}: ${response.reasonPhrase}');
+        debugPrint('[HltbHttp] ❌ HTTP ${response.statusCode}: ${response.reasonPhrase}');
         return null;
       }
     } on TimeoutException {
-      debugPrint('[HltbHttp] ⏱️ Timeout after 10s');
+      debugPrint('[HltbHttp] ❌ Timeout fetching game page');
       return null;
     } catch (e) {
-      debugPrint('[HltbHttp] ❌ Error: $e');
+      debugPrint('[HltbHttp] ❌ Error fetching page: $e');
       return null;
     }
   }
@@ -293,21 +256,13 @@ class HltbHttpClient {
       );
 
       final match = regex.firstMatch(html);
-      if (match == null) {
-        debugPrint('[HltbHttp] ❌ No __NEXT_DATA__ script found');
-        return null;
-      }
+      if (match == null) return null;
 
       final jsonString = match.group(1);
-      if (jsonString == null || jsonString.isEmpty) {
-        debugPrint('[HltbHttp] ❌ Empty __NEXT_DATA__ content');
-        return null;
-      }
+      if (jsonString == null || jsonString.isEmpty) return null;
 
       // Parse JSON
       final jsonData = json.decode(jsonString) as Map<String, dynamic>;
-      debugPrint('[HltbHttp] ✅ Extracted JSON with keys: ${jsonData.keys}');
-
       return jsonData;
     } catch (e) {
       debugPrint('[HltbHttp] ❌ JSON extraction error: $e');
@@ -321,35 +276,20 @@ class HltbHttpClient {
     try {
       // Navigate through Next.js structure: props → pageProps → game → data → game (array)
       final props = json['props'] as Map<String, dynamic>?;
-      if (props == null) {
-        debugPrint('[HltbHttp] ❌ No "props" key');
-        return null;
-      }
+      if (props == null) return null;
 
       final pageProps = props['pageProps'] as Map<String, dynamic>?;
-      if (pageProps == null) {
-        debugPrint('[HltbHttp] ❌ No "pageProps" key');
-        return null;
-      }
+      if (pageProps == null) return null;
 
       final game = pageProps['game'] as Map<String, dynamic>?;
-      if (game == null) {
-        debugPrint('[HltbHttp] ❌ No "game" key');
-        return null;
-      }
+      if (game == null) return null;
 
       final data = game['data'] as Map<String, dynamic>?;
-      if (data == null) {
-        debugPrint('[HltbHttp] ❌ No "data" key');
-        return null;
-      }
+      if (data == null) return null;
 
       // Game data is an array - get first element
       final gameArray = data['game'] as List<dynamic>?;
-      if (gameArray == null || gameArray.isEmpty) {
-        debugPrint('[HltbHttp] ❌ No "game" array or empty array');
-        return null;
-      }
+      if (gameArray == null || gameArray.isEmpty) return null;
 
       final gameObject = gameArray[0] as Map<String, dynamic>;
 
@@ -357,11 +297,7 @@ class HltbHttpClient {
       final gameId = gameObject['game_id']?.toString() ?? '';
       final gameName = gameObject['game_name']?.toString() ?? '';
 
-      if (gameId.isEmpty || gameName.isEmpty) {
-        debugPrint(
-            '[HltbHttp] ❌ Missing game_id or game_name (id: "$gameId", name: "$gameName")');
-        return null;
-      }
+      if (gameId.isEmpty || gameName.isEmpty) return null;
 
       // Parse completion times - times are in SECONDS, convert to hours
       final compMain = _parseTimeInSeconds(gameObject['comp_main']);
@@ -379,9 +315,6 @@ class HltbHttpClient {
         completionistHours: comp100,
         imageUrl: gameImage,
       );
-
-      debugPrint(
-          '[HltbHttp] ✅ Parsed: $gameName (${compMain}h / ${compPlus}h / ${comp100}h)');
 
       return gameData;
     } catch (e) {
@@ -420,6 +353,5 @@ class HltbHttpClient {
   /// Clean up HTTP client
   void dispose() {
     _client.close();
-    debugPrint('[HltbHttp] 🔌 Client disposed');
   }
 }

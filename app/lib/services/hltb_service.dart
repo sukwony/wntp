@@ -24,15 +24,10 @@ class HltbService {
       // Clean the game name for better search results
       final cleanName = _cleanGameName(gameName);
 
-      debugPrint('[HLTB] 🔍 Searching for "$gameName" via API...');
-
       // Call search API directly
       final results = await _httpClient.searchGames(cleanName);
 
-      if (results.isEmpty) {
-        debugPrint('[HLTB] ❌ No results for "$gameName"');
-        return null;
-      }
+      if (results.isEmpty) return null;
 
       // Return first result (most relevant)
       final firstResult = results.first;
@@ -43,10 +38,9 @@ class HltbService {
         return null;
       }
 
-      debugPrint('[HLTB] ✅ "$gameName" → ${firstResult.name}: ${firstResult.mainHours ?? "-"}h / ${firstResult.mainExtraHours ?? "-"}h / ${firstResult.completionistHours ?? "-"}h');
       return firstResult;
     } catch (e) {
-      debugPrint('[HLTB] ❌ Error: $e');
+      debugPrint('[HLTB] ❌ Search error: $e');
       return null;
     }
   }
@@ -97,44 +91,35 @@ class HltbService {
   Future<Game> enrichWithHltbData(Game game) async {
     // Tier 1: Use stored HLTB ID (fastest path)
     if (game.hltbId != null && game.hltbId!.isNotEmpty) {
-      debugPrint('[HLTB] 🎯 Tier 1: Using stored ID ${game.hltbId} for "${game.name}"');
       final data = await _httpClient.fetchByGameId(game.hltbId!);
       if (data != null) {
-        debugPrint('[HLTB] ✅ Tier 1 success: ${data.name}');
         return _applyHltbData(game, data);
       }
-      // If direct fetch fails, continue to other tiers
-      debugPrint('[HLTB] ⚠️ Tier 1 failed, trying other methods');
     }
 
     // Tier 2: Wikidata mapping lookup
     try {
       final hltbId = await _wikidataService.getHltbId(game.id);
       if (hltbId != null && hltbId.isNotEmpty) {
-        debugPrint('[HLTB] 🌐 Tier 2: Wikidata mapping: ${game.id} → $hltbId');
         final data = await _httpClient.fetchByGameId(hltbId);
         if (data != null) {
-          debugPrint('[HLTB] ✅ Tier 2 success: ${data.name}');
           // Store hltbId for future syncs (Tier 1 path)
           return _applyHltbData(game, data).copyWith(hltbId: hltbId);
         }
       }
     } catch (e) {
-      debugPrint('[HLTB] ⚠️ Tier 2 error for ${game.id}: $e');
+      debugPrint('[HLTB] ⚠️ Wikidata lookup error for ${game.id}: $e');
       // Continue to Tier 3 fallback
     }
 
     // Tier 3: Name-based search fallback (exact match only)
-    debugPrint('[HLTB] 🔍 Tier 3: Falling back to name search for "${game.name}"');
     final data = await searchGame(game.name);
     if (data != null) {
       // searchGame() already validates with _isGoodMatch() (exact match only)
-      debugPrint('[HLTB] ✅ Tier 3 success: "${game.name}" → "${data.name}"');
       // Store hltbId for future syncs
       return _applyHltbData(game, data).copyWith(hltbId: data.id);
     }
 
-    debugPrint('[HLTB] ⚠️ All tiers failed - leaving HLTB data empty for "${game.name}"');
     // Mark as attempted but not found (empty string) to avoid re-fetching
     return game.copyWith(hltbId: ""); // No HLTB data (better empty than wrong)
   }

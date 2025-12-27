@@ -154,24 +154,19 @@ class SyncService {
 
         // Only enrich if missing HLTB data
         if (game.hltbMainHours == null) {
-          debugPrint('[SYNC] 🎮 Fetching HLTB for: ${game.name} (${i + 1}/${games.length})');
           try {
             final enriched = await _hltbService.enrichWithHltbData(game);
             games[i] = enriched;
 
             if (enriched.hltbMainHours != null) {
               hltbSuccessCount++;
-              debugPrint('[SYNC] ✅ HLTB success: ${game.name} -> ${enriched.hltbMainHours}h');
             } else {
               hltbFailCount++;
-              debugPrint('[SYNC] ⚠️  HLTB no data found: ${game.name}');
             }
           } catch (e) {
             hltbFailCount++;
             debugPrint('[SYNC] ❌ HLTB error for ${game.name}: $e');
           }
-        } else {
-          debugPrint('[SYNC] ⏭️  Skipping ${game.name} - already has HLTB data (${game.hltbMainHours}h)');
         }
 
         yield SyncProgress(
@@ -181,7 +176,7 @@ class SyncService {
           message: 'Fetching HLTB: ${game.name}',
         );
 
-        // Rate limiting for HLTB WebView scraping (increased to avoid detection)
+        // Rate limiting for HLTB API calls
         // 1.5-2.5s with random jitter to mimic human behavior
         await Future.delayed(Duration(milliseconds: 1500 + (DateTime.now().millisecond % 1000)));
       }

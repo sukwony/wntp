@@ -27,7 +27,6 @@ class WikidataService {
   /// Initialize the service by opening the Hive box
   Future<void> initialize() async {
     _mappingsBox = await Hive.openBox<WikidataMapping>('wikidata_mappings');
-    debugPrint('[Wikidata] Initialized with ${_mappingsBox.length} cached mappings');
   }
 
   /// Get HLTB ID for a Steam AppID (with caching)
@@ -42,26 +41,15 @@ class WikidataService {
     // Check cache first
     final cached = _mappingsBox.get(steamAppId);
     if (cached != null && !_isStale(cached)) {
-      if (cached.isNullMapping) {
-        debugPrint('[Wikidata] Cache hit (null mapping): $steamAppId');
-        return null;
-      }
-      debugPrint('[Wikidata] Cache hit: $steamAppId → ${cached.hltbId}');
+      if (cached.isNullMapping) return null;
       return cached.hltbId;
     }
 
     // Query Wikidata
-    debugPrint('[Wikidata] Cache miss, querying for Steam AppID $steamAppId');
     final hltbId = await _queryWikidata(steamAppId);
 
     // Cache result (even if null)
     await _cacheMapping(steamAppId, hltbId);
-
-    if (hltbId != null) {
-      debugPrint('[Wikidata] Query result: $steamAppId → $hltbId');
-    } else {
-      debugPrint('[Wikidata] Query result: $steamAppId → no mapping');
-    }
 
     return hltbId;
   }
@@ -97,10 +85,10 @@ class WikidataService {
           return hltbId;
         }
       } else {
-        debugPrint('[Wikidata] HTTP ${response.statusCode}: ${response.body}');
+        debugPrint('[Wikidata] ❌ HTTP ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[Wikidata] Query error: $e');
+      debugPrint('[Wikidata] ❌ Query error: $e');
       rethrow; // Let caller handle network errors
     }
 
@@ -132,7 +120,6 @@ class WikidataService {
   /// Clear all cached mappings
   Future<void> clearCache() async {
     await _mappingsBox.clear();
-    debugPrint('[Wikidata] Cache cleared');
   }
 
   /// Close the Hive box
