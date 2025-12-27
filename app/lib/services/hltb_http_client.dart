@@ -82,7 +82,7 @@ class HltbHttpClient {
         'searchOptions': {
           'games': {
             'userId': 0,
-            'platform': '',
+            'platform': 'PC',  // Filter for PC games only (Steam games are PC platform)
             'sortCategory': 'popular',
             'rangeCategory': 'main',
             'rangeTime': {'min': null, 'max': null},
