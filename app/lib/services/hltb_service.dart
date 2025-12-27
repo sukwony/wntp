@@ -19,7 +19,11 @@ class HltbService {
   }
 
   /// Search for a game on HowLongToBeat using direct API access
-  /// Throws TimeoutException or SocketException for network errors (caller should retry)
+  ///
+  /// Throws for retryable errors (caller should retry):
+  /// - TimeoutException: Network timeout
+  /// - SocketException: Network connection failed
+  /// - HltbRetryableException: Auth expired or server error
   Future<HltbGameData?> searchGame(String gameName) async {
     // Clean the game name for better search results
     final cleanName = _cleanGameName(gameName);
@@ -87,7 +91,10 @@ class HltbService {
   /// Tier 2: Query Wikidata for Steam AppID → HLTB ID mapping (reliable)
   /// Tier 3: Fallback to name-based search with exact matching (accurate)
   ///
-  /// Throws TimeoutException or SocketException for network errors (caller should retry)
+  /// Throws for retryable errors (caller should retry):
+  /// - TimeoutException: Network timeout
+  /// - SocketException: Network connection failed
+  /// - HltbRetryableException: Auth expired or server error
   Future<Game> enrichWithHltbData(Game game) async {
     // Tier 1: Use stored HLTB ID (fastest path)
     // May throw network exception - caller will retry

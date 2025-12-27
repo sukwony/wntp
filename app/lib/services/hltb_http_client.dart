@@ -5,6 +5,15 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/hltb_game_data.dart';
 
+/// Exception for retryable HLTB errors (auth expired, server errors)
+class HltbRetryableException implements Exception {
+  final String message;
+  HltbRetryableException(this.message);
+
+  @override
+  String toString() => 'HltbRetryableException: $message';
+}
+
 /// HTTP client for direct HLTB API access
 /// Bypasses WebView by calling search API directly with proper authentication
 class HltbHttpClient {
@@ -16,6 +25,7 @@ class HltbHttpClient {
 
   /// Initialize auth token by calling /api/search/init
   /// Token is required for all search API calls
+  /// Throws TimeoutException or SocketException for network errors
   Future<String?> _getAuthToken() async {
     // Return cached token if still valid (estimate 5 minutes lifetime)
     if (_authToken != null && _tokenExpiry != null && DateTime.now().isBefore(_tokenExpiry!)) {
@@ -46,16 +56,31 @@ class HltbHttpClient {
         }
       }
 
+      // HTTP error - return null (API issue, not retryable)
       debugPrint('[HltbHttp] ❌ Failed to get auth token: ${response.statusCode}');
       return null;
+    } on TimeoutException {
+      // Network timeout - rethrow to retry later
+      debugPrint('[HltbHttp] ❌ Auth token timeout');
+      rethrow;
+    } on SocketException {
+      // Network connection failed - rethrow to retry later
+      debugPrint('[HltbHttp] ❌ Auth token network error');
+      rethrow;
     } catch (e) {
-      debugPrint('[HltbHttp] ❌ Auth token error: $e');
+      // Parsing errors - return null
+      debugPrint('[HltbHttp] ❌ Auth token parse error: $e');
       return null;
     }
   }
 
   /// Search for games using HLTB API
   /// Returns list of matching games (usually first result is most relevant)
+  ///
+  /// Throws for retryable errors:
+  /// - TimeoutException: Network timeout
+  /// - SocketException: Network connection failed
+  /// - HltbRetryableException: Auth expired (401) or server error (500+)
   Future<List<HltbGameData>> searchGames(String gameName) async {
     if (gameName.isEmpty) return [];
 
@@ -117,6 +142,7 @@ class HltbHttpClient {
         final dataList = jsonData['data'] as List<dynamic>?;
 
         if (dataList == null || dataList.isEmpty) {
+          // No search results found - return empty (not an error)
           return [];
         }
 
@@ -131,11 +157,17 @@ class HltbHttpClient {
 
         return results;
       } else if (response.statusCode == 401) {
-        // Unauthorized - clear token and retry once
+        // Unauthorized - token expired, clear cache and throw to retry
+        debugPrint('[HltbHttp] ❌ Search unauthorized (401) - token expired');
         _authToken = null;
         _tokenExpiry = null;
-        return [];
+        throw HltbRetryableException('Authentication token expired');
+      } else if (response.statusCode >= 500) {
+        // Server error - throw to retry later
+        debugPrint('[HltbHttp] ❌ Search server error: ${response.statusCode}');
+        throw HltbRetryableException('HLTB server error: ${response.statusCode}');
       } else {
+        // Client error (404, 400, etc.) - return empty (not retryable)
         debugPrint('[HltbHttp] ❌ Search failed: ${response.statusCode}');
         return [];
       }
@@ -147,8 +179,11 @@ class HltbHttpClient {
       // Network connection failed - rethrow to retry later
       debugPrint('[HltbHttp] ❌ Network connection failed');
       rethrow;
+    } on HltbRetryableException {
+      // Auth expired or server error - rethrow to retry later
+      rethrow;
     } catch (e) {
-      // Other errors (auth, parsing) - return empty
+      // Other errors (parsing, etc.) - return empty
       debugPrint('[HltbHttp] ❌ Search error: $e');
       return [];
     }
@@ -158,7 +193,10 @@ class HltbHttpClient {
   /// More reliable than search when ID is known (from Wikidata or previous search)
   ///
   /// Returns HltbGameData if successful, null if fetch/parse fails
-  /// Throws TimeoutException or SocketException for network errors (caller should retry)
+  ///
+  /// Throws for retryable errors (caller should retry):
+  /// - TimeoutException: Network timeout
+  /// - SocketException: Network connection failed
   Future<HltbGameData?> fetchByGameId(String hltbId) async {
     try {
       final html = await fetchGamePage(hltbId);
