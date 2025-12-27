@@ -70,15 +70,13 @@ class HltbService {
   }
 
   /// Clean game name for better search results
+  /// Only removes trademark symbols - keeps edition names for better exact matching
   String _cleanGameName(String name) {
-    // Remove common suffixes and special characters
     return name
         // Replace trademark symbols with space (not empty string!)
         // This prevents "COMBAT™7" from becoming "COMBAT7" instead of "COMBAT 7"
         .replaceAll(RegExp(r'™|®|©'), ' ')
-        // Remove edition suffixes (with or without separator)
-        // Handle multi-word editions like "Special Edition", "Collector's Edition"
-        .replaceAll(RegExp(r'\s*[-:]?\s*(Special|Collectors?|Legendary|Standard|Premium)?\s*(Definitive|Complete|GOTY|Game of the Year|Edition|Remastered|Enhanced|Ultimate|Deluxe|Digital).*', caseSensitive: false), '')
+        // Normalize whitespace
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }
